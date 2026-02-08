@@ -59,48 +59,53 @@ def scout_vintage_gems(target_genres):
     discovered_ids = []
     
     for genre in target_genres:
-        print(f"   [Classic Mode] Scouting 80s/90s/00s '{genre}'...")
+        print(f"   [Classic Mode] Scouting 80s/90s/00s for '{genre}'...")
         
-        # STRATEGY 1: Strict Genre Search
-        query = f"year:1980-2010 genre:\"{genre}\""
+        # We will try up to 2 variations of the genre name
+        # Variation 1: The exact genre (e.g., "conscious hip hop")
+        # Variation 2: The last word (e.g., "hop") - usually the root genre
         
-        try:
-            # Fetch MAX limit (50) to increase odds of finding hits
-            results = sp.search(q=query, limit=50, type='track')
-            tracks = results['tracks']['items']
+        # Split genre into parts to create fallbacks
+        search_terms = [genre]
+        if " " in genre:
+            search_terms.append(genre.split()[-1]) # Add the last word (e.g. "Pop" from "Indie Pop")
             
-            # If Strict Search failed (0 results), try STRATEGY 2: Keyword Search
-            if not tracks:
-                print(f"     Strict search failed. Trying keyword search for '{genre}'...")
-                # Search the genre name as a keyword + year range
-                query_fallback = f"{genre} year:1980-2010"
-                results = sp.search(q=query_fallback, limit=50, type='track')
+        found_for_this_genre = False
+        
+        for term in search_terms:
+            if found_for_this_genre:
+                break # Stop if we already found songs for this genre
+                
+            query = f"year:1980-2010 genre:\"{term}\""
+            # If the simple genre search fails, try keyword search as a last resort
+            if term != genre: 
+                query = f"year:1980-2010 {term}"
+            
+            try:
+                # print(f"      Debug: Trying query '{query}'...") 
+                results = sp.search(q=query, limit=50, type='track')
                 tracks = results['tracks']['items']
+                
+                if tracks:
+                    # Sort by Popularity (High to Low) to find the "Hits"
+                    # We accept slightly lower popularity (20) for older tracks
+                    popular_tracks = [t for t in tracks if t['popularity'] > 20]
+                    popular_tracks.sort(key=lambda x: x['popularity'], reverse=True)
+                    
+                    # Take the top 3
+                    for t in popular_tracks[:3]:
+                        if t['id'] not in discovered_ids:
+                            discovered_ids.append(t['id'])
+                            print(f"     -> Found Hit: {t['name']} - {t['artists'][0]['name']} (Pop: {t['popularity']})")
+                            found_for_this_genre = True
+            except:
+                continue
+        
+        if not found_for_this_genre:
+            print(f"     Could not find classic tracks for '{genre}' (It might be too new!)")
 
-            # If we found tracks, let's find the "Hits" among them
-            if tracks:
-                # SORT by popularity (Highest to Lowest)
-                sorted_tracks = sorted(tracks, key=lambda x: x['popularity'], reverse=True)
-                
-                # Take the Top 5 most popular from this batch
-                top_hits = sorted_tracks[:5]
-                
-                for t in top_hits:
-                    # Optional: Still ignore things with 0 popularity (broken tracks)
-                    if t['popularity'] > 10:
-                        discovered_ids.append(t['id'])
-                        print(f"     -> Found Hit: {t['name']} - {t['artists'][0]['name']} (Pop: {t['popularity']})")
-            else:
-                print(f"     No tracks found for {genre} even with fallback.")
-                
-        except Exception as e:
-            print(f"     Error searching {genre}: {e}")
-            continue
-
-    # Shuffle to mix genres
+    # Shuffle and Return
     random.shuffle(discovered_ids)
-    
-    # Remove duplicates
     return list(set(discovered_ids))
 
 def create_vintage_playlist(track_ids):
