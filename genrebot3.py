@@ -58,30 +58,46 @@ def scout_vintage_gems(target_genres):
     print(f"\n--- STEP 2: The Time Machine (1980-2010) ---")
     discovered_ids = []
     
-    # We loop through your top genres to find classics in each
     for genre in target_genres:
-        print(f"   [Classic Mode] Scouting 80s/90s/00s {genre}...")
+        print(f"   [Classic Mode] Scouting 80s/90s/00s '{genre}'...")
         
-        # SEARCH QUERY:
-        # We look for songs from 1980 to 2010 in that specific genre
+        # STRATEGY 1: Strict Genre Search
         query = f"year:1980-2010 genre:\"{genre}\""
         
         try:
-            # We grab 20 candidates per genre to filter down
-            results = sp.search(q=query, limit=20, type='track')
+            # Fetch MAX limit (50) to increase odds of finding hits
+            results = sp.search(q=query, limit=50, type='track')
             tracks = results['tracks']['items']
             
-            for t in tracks:
-                # POPULARITY FILTER:
-                # We only want "Popular Oldies" (Hits), so we require popularity > 50.
-                # This filters out obscure tracks and keeps the 'Classics'.
-                if t['popularity'] > 50:
-                    discovered_ids.append(t['id'])
-                    print(f"     -> Found Hit: {t['name']} - {t['artists'][0]['name']} (Pop: {t['popularity']})")
-        except:
+            # If Strict Search failed (0 results), try STRATEGY 2: Keyword Search
+            if not tracks:
+                print(f"     Strict search failed. Trying keyword search for '{genre}'...")
+                # Search the genre name as a keyword + year range
+                query_fallback = f"{genre} year:1980-2010"
+                results = sp.search(q=query_fallback, limit=50, type='track')
+                tracks = results['tracks']['items']
+
+            # If we found tracks, let's find the "Hits" among them
+            if tracks:
+                # SORT by popularity (Highest to Lowest)
+                sorted_tracks = sorted(tracks, key=lambda x: x['popularity'], reverse=True)
+                
+                # Take the Top 5 most popular from this batch
+                top_hits = sorted_tracks[:5]
+                
+                for t in top_hits:
+                    # Optional: Still ignore things with 0 popularity (broken tracks)
+                    if t['popularity'] > 10:
+                        discovered_ids.append(t['id'])
+                        print(f"     -> Found Hit: {t['name']} - {t['artists'][0]['name']} (Pop: {t['popularity']})")
+            else:
+                print(f"     No tracks found for {genre} even with fallback.")
+                
+        except Exception as e:
+            print(f"     Error searching {genre}: {e}")
             continue
 
-    # Shuffle to mix genres (so you don't get 10 rap songs then 10 rock songs)
+    # Shuffle to mix genres
     random.shuffle(discovered_ids)
     
     # Remove duplicates
