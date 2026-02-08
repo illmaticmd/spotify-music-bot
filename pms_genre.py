@@ -59,7 +59,7 @@ def get_top_genres():
         # Count them to find your "Top 3"
         # This is basic text analytics
         genre_counts = Counter(all_genres)
-        top_3 = [genre for genre, count in genre_counts.most_common(3)]
+        top_3 = [genre for genre, count in genre_counts.most_common(20)]
         
         print(f"   Your Top Genres: {top_3}")
         return top_3
@@ -69,11 +69,11 @@ def get_top_genres():
         return ['pop', 'rap'] # Safety fallback
 
 def scout_genre_gems(target_genres):
-    print(f"\n--- STEP 2: Hunting for New Music (2024-2026) ---")
+    print(f"\n--- STEP 2: Hunting for New Music (1990-2000) ---")
     discovered_ids = []
     
     # We want "Fresh" music
-    year_query = "year:2024-2026"
+    year_query = "year:1990-2000"
     
     for genre in target_genres:
         print(f"   Scouting for new '{genre}' tracks...")
@@ -87,7 +87,7 @@ def scout_genre_gems(target_genres):
             for t in tracks:
                 # FILTER: Skip extremely popular songs (Let's find gems, not hits)
                 # Popularity is 0-100. We'll skip anything over 80 (Mainstream hits)
-                if t['popularity'] < 80:
+                if t['popularity'] > 0:
                     discovered_ids.append(t['id'])
                     print(f"     -> Found: {t['name']} by {t['artists'][0]['name']} (Pop: {t['popularity']})")
                     
